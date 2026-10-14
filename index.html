@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Chatbot</title>
+    <style>
+        :root {
+            --bg: #0f1115;
+            --panel: #171a21;
+            --panel-2: #1d212a;
+            --line: #272c37;
+            --text: #e7e9ee;
+            --muted: #8b93a7;
+            --accent: #4c8dff;
+            --good: #3ddc97;
+            --bad: #ff6b6b;
+            --warn: #ffb454;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; background: var(--bg); color: var(--text);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-size: 14px; line-height: 1.5;
+        }
+        .app { display: flex; min-height: 100vh; }
+
+        .sidebar {
+            width: 232px; flex-shrink: 0; background: var(--panel);
+            border-right: 1px solid var(--line); padding: 20px 14px;
+            display: flex; flex-direction: column;
+            transition: width 0.3s ease, padding 0.3s ease;
+        }
+        .sidebar.collapsed {
+            width: 64px; padding: 20px 8px;
+        }
+        .sidebar.collapsed .brand-text,
+        .sidebar.collapsed .nav span:not(.ico),
+        .sidebar.collapsed .new-chat-btn span:not(.ico),
+        .sidebar.collapsed .history-section,
+        .sidebar.collapsed .side-foot { display: none; }
+        .brand { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 8px 20px; }
+        .toggle-btn { background: transparent; border: 1px solid var(--line); color: var(--muted); padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 14px; transition: all 0.2s; }
+        .toggle-btn:hover { background: var(--panel-2); color: var(--text); }
+        .brand-mark {
+            width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+            background: linear-gradient(135deg, var(--accent), #7b5cff);
+            display: grid; place-items: center; font-weight: 700; font-size: 15px;
+        }
+        .brand-name { font-weight: 600; letter-spacing: 0.2px; }
+        .brand-sub { font-size: 11px; color: var(--muted); }
+        .nav { display: flex; flex-direction: column; gap: 3px; }
+        .nav button {
+            display: flex; align-items: center; gap: 10px; width: 100%;
+            padding: 9px 12px; border: 0; border-radius: 7px; cursor: pointer;
+            background: transparent; color: var(--muted); font: inherit; text-align: left;
+        }
+        .nav button:hover { background: var(--panel-2); color: var(--text); }
+        .nav button.active { background: var(--accent); color: #fff; }
+        .nav .ico { width: 16px; text-align: center; opacity: .9; }
+        .new-chat-btn {
+            display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin-top: 12px;
+            padding: 9px 12px; border: none; border-radius: 7px; cursor: pointer;
+            background: var(--accent); color: #fff; font: inherit; font-weight: 600; text-align: center;
+        }
+        .new-chat-btn:hover { background: #5a9aff; transform: translateY(-1px); }
+        .new-chat-btn .ico { font-size: 18px; font-weight: 600; }
+        .history-section { flex: 1; overflow-y: auto; margin-top: 16px; padding: 0; }
+        .history-section h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin: 0 0 8px 8px; font-weight: 600; }
+        .history-item { background: transparent; border: 1px solid transparent; padding: 8px 10px; border-radius: 6px; cursor: pointer; margin-bottom: 4px; transition: all 0.2s; }
+        .history-item:hover { background: var(--panel-2); border-color: var(--line); }
+        .history-item.active { background: var(--panel-2); border-color: var(--accent); }
+        .history-item-title { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .side-foot { margin-top: auto; padding: 12px 10px 0; border-top: 1px solid var(--line); font-size: 11px; color: var(--muted); }
+
+        .main { flex: 1; min-width: 0; padding: 22px 26px; display: flex; flex-direction: column; }
+        .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+        .topbar h1 { margin: 0; font-size: 20px; font-weight: 600; }
+        .topbar p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+        .live { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
+        .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); box-shadow: 0 0 0 3px rgba(61,220,151,.15); }
+        .dot.off { background: var(--bad); box-shadow: 0 0 0 3px rgba(255,107,107,.15); }
+
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 18px; }
+        .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+        .card-label { font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+        .card-value { font-size: 26px; font-weight: 650; margin-top: 6px; font-variant-numeric: tabular-nums; }
+        .card-note { font-size: 11px; color: var(--muted); margin-top: 4px; }
+        .card-value.good { color: var(--good); }
+        .card-value.bad { color: var(--bad); }
+        .card-value.warn { color: var(--warn); }
+
+        .grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; align-items: start; }
+        .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+        .panel-head { display: flex; align-items: center; justify-content: space-between; padding: 13px 16px; border-bottom: 1px solid var(--line); }
+        .panel-head h2 { margin: 0; font-size: 13px; font-weight: 600; }
+        .panel-body { padding: 16px; }
+        .hint { color: var(--muted); font-size: 11px; }
+
+        .chart { display: flex; align-items: flex-end; gap: 10px; height: 180px; padding-top: 8px; }
+        .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 7px; height: 100%; justify-content: flex-end; }
+        .bar {
+            width: 100%; max-width: 46px; border-radius: 5px 5px 0 0;
+            background: linear-gradient(180deg, var(--accent), #2f5fb8);
+            min-height: 3px; transition: height .4s ease;
+        }
+        .bar.empty { background: var(--line); }
+        .bar-label { font-size: 10px; color: var(--muted); white-space: nowrap; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th { text-align: left; color: var(--muted); font-weight: 500; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+        td { padding: 7px 8px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+        tr:last-child td { border-bottom: 0; }
+        .pill { padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+        .pill.ok { background: rgba(61,220,151,.13); color: var(--good); }
+        .pill.no { background: rgba(255,107,107,.13); color: var(--bad); }
+        .empty-note { color: var(--muted); font-size: 12px; text-align: center; padding: 26px 0; }
+        .note-box {
+            margin-top: 14px; padding: 10px 12px; border-radius: 8px;
+            background: var(--panel-2); border: 1px solid var(--line);
+            color: var(--muted); font-size: 11px;
+        }
+
+        .chat-panel { display: flex; flex-direction: column; height: 520px; }
+        .chat-log { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 9px; }
+        .msg { padding: 9px 13px; border-radius: 12px; max-width: 85%; word-wrap: break-word; line-height: 1.5; font-size: 13px; }
+        .msg.bot { background: var(--panel-2); align-self: flex-start; border: 1px solid var(--line); }
+        .msg.user { background: var(--accent); color: #fff; align-self: flex-end; }
+        .msg.loading { color: var(--muted); font-style: italic; }
+        .msg.error { background: rgba(255,107,107,.1); color: var(--bad); border: 1px solid rgba(255,107,107,.3); }
+        .msg pre { background: #0b0d11; padding: 9px; border-radius: 6px; overflow-x: auto; margin: 6px 0; }
+        .msg code { background: rgba(255,255,255,.08); padding: 1px 5px; border-radius: 4px; font-family: Consolas, monospace; font-size: 12px; }
+        .msg pre code { background: none; padding: 0; }
+        .msg b { color: var(--accent); font-size: 10px; display: block; margin-bottom: 2px; font-weight: 600; }
+        .msg.user b { color: rgba(255,255,255,.75); }
+        .chat-form { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--line); }
+        .chat-form input {
+            flex: 1; padding: 10px 12px; border-radius: 8px; font: inherit;
+            background: var(--panel-2); border: 1px solid var(--line); color: var(--text);
+        }
+        .chat-form input:focus { outline: none; border-color: var(--accent); }
+        .chat-form button {
+            padding: 10px 16px; border: 0; border-radius: 8px; cursor: pointer;
+            background: var(--accent); color: #fff; font: inherit; font-weight: 600;
+        }
+        .chat-form button:disabled { opacity: .55; cursor: not-allowed; }
+
+        .view { display: none; }
+        .view.active { display: block; }
+
+        @media (max-width: 900px) {
+            .grid { grid-template-columns: 1fr; }
+            .sidebar { width: 64px; padding: 16px 8px; }
+            .brand-text, .nav span:not(.ico), .side-foot { display: none; }
+            .nav button { justify-content: center; padding: 11px 0; }
+            .main { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <aside class="sidebar" id="sidebar">
+        <div class="brand">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <div class="brand-mark">C</div>
+                <div class="brand-text">
+                    <div class="brand-name">Chatbot</div>
+                    <div class="brand-sub">Operations</div>
+                </div>
+            </div>
+            <button class="toggle-btn" id="toggle-sidebar" title="Toggle sidebar">☰</button>
+        </div>
+        <button class="new-chat-btn" id="new-chat-btn" title="Mulai percakapan baru">
+            <span class="ico">+</span><span>New Chat</span>
+        </button>
+        <nav class="nav">
+            <button data-view="overview"><span class="ico">&#9636;</span><span>Overview</span></button>
+            <button data-view="chat"><span class="ico">&#9679;</span><span>Live Chat</span></button>
+            <button data-view="logs"><span class="ico">&#8801;</span><span>Request Log</span></button>
+        </nav>
+        <div class="history-section">
+            <h3>History</h3>
+            <div id="history-list"></div>
+        </div>
+        <div class="side-foot" id="uptime">Server -</div>
+    </aside>
+
+    <main class="main">
+        <div class="topbar">
+            <div>
+                <h1 id="view-title">Overview</h1>
+                <p id="view-sub">Metrik runtime chatbot, diperbarui tiap 10 detik</p>
+            </div>
+            <div class="live"><span class="dot" id="dot"></span><span id="live-text">Menghubungkan...</span></div>
+        </div>
+
+        <section class="view active" id="view-overview">
+            <div class="stats">
+                <div class="card">
+                    <div class="card-label">Percakapan</div>
+                    <div class="card-value" id="s-requests">0</div>
+                    <div class="card-note" id="s-sessions">0 sesi</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Token terpakai</div>
+                    <div class="card-value" id="s-tokens">0</div>
+                    <div class="card-note" id="s-tokensplit">0 masuk - 0 keluar</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Latency rata-rata</div>
+                    <div class="card-value" id="s-latency">-</div>
+                    <div class="card-note" id="s-latency-max">puncak -</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Error rate</div>
+                    <div class="card-value" id="s-error">0%</div>
+                    <div class="card-note" id="s-error-count">0 dari 0 request</div>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="panel">
+                    <div class="panel-head">
+                        <h2>Aktivitas 7 hari terakhir</h2>
+                        <span class="hint" id="chart-total">-</span>
+                    </div>
+                    <div class="panel-body">
+                        <div class="chart" id="chart"></div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-head"><h2>Distribusi token</h2></div>
+                    <div class="panel-body">
+                        <table>
+                            <tr><td style="color:var(--muted)">Prompt (masuk)</td><td style="text-align:right" id="d-in">0</td><td style="text-align:right;color:var(--muted)" id="d-in-pct">0%</td></tr>
+                            <tr><td style="color:var(--muted)">Completion (keluar)</td><td style="text-align:right" id="d-out">0</td><td style="text-align:right;color:var(--muted)" id="d-out-pct">0%</td></tr>
+                            <tr><td style="color:var(--muted);font-weight:600">Total</td><td style="text-align:right;font-weight:600" id="d-total">0</td><td style="text-align:right;color:var(--muted)">100%</td></tr>
+                        </table>
+                        <div class="note-box" id="token-note">
+                            Estimasi ~4 karakter per token bila API tidak mengirim usage.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="view" id="view-chat">
+            <div class="panel chat-panel">
+                <div class="panel-head">
+                    <h2>Percakapan langsung</h2>
+                    <span class="hint" id="chat-tokens">0 token sesi ini</span>
+                </div>
+                <div class="chat-log" id="history">
+                    <div class="msg bot"><b>Asisten</b>Halo! Ada yang bisa saya bantu?</div>
+                </div>
+                <form class="chat-form" onsubmit="send(event)">
+                    <input type="text" id="input" placeholder="Ketik pesan..." autocomplete="off">
+                    <button id="btn" type="submit">Kirim</button>
+                </form>
+            </div>
+        </section>
+
+        <section class="view" id="view-logs">
+            <div class="panel">
+                <div class="panel-head">
+                    <h2>20 request terakhir</h2>
+                    <span class="hint">in-memory, reset saat restart</span>
+                </div>
+                <table>
+                    <thead><tr><th>Waktu</th><th>Hasil</th><th>Latency</th><th>Token</th></tr></thead>
+                    <tbody id="log-body"></tbody>
+                </table>
+                <div class="empty-note" id="log-empty">Belum ada request.</div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script>
+    const chatCtx = [];
+    const MAX_CTX = 20;
+    // Gunakan session ID yang sama dari localStorage, atau buat baru
+    let SESSION_ID = localStorage.getItem('chatbot_session_id');
+    if (!SESSION_ID) {
+        SESSION_ID = (window.crypto && crypto.randomUUID)
+            ? crypto.randomUUID()
+            : String(Date.now()) + Math.random().toString(36).slice(2);
+        localStorage.setItem('chatbot_session_id', SESSION_ID);
+    }
+    const $ = (id) => document.getElementById(id);
+    const history = $('history');
+    let sessionTokens = 0;
+
+    const fmt = (n) => new Intl.NumberFormat('id-ID').format(n || 0);
+    const pct = (a, b) => (b ? Math.round((a / b) * 100) : 0);
+    const dur = (ms) => {
+        const s = Math.floor(ms / 1000);
+        if (s < 60) return s + ' dtk';
+        const m = Math.floor(s / 60);
+        if (m < 60) return m + ' mnt';
+        const h = Math.floor(m / 60);
+        if (h < 24) return h + ' jam';
+        return Math.floor(h / 24) + ' hr';
+    };
+    const clock = (iso) => new Date(iso).toLocaleTimeString('id-ID', {
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+
+    // --- Navigasi ---
+    const TITLES = {
+        overview: ['Overview', 'Metrik runtime chatbot, diperbarui tiap 10 detik'],
+        chat: ['Live Chat', 'Uji chatbot langsung dan pantau token yang terpakai'],
+        logs: ['Request Log', 'Riwayat request server, 20 entri terbaru']
+    };
+    document.querySelectorAll('.nav button').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.nav button').forEach((b) => b.classList.remove('active'));
+            btn.classList.add('active');
+            document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'));
+            $('view-' + btn.dataset.view).classList.add('active');
+            $('view-title').textContent = TITLES[btn.dataset.view][0];
+            $('view-sub').textContent = TITLES[btn.dataset.view][1];
+        });
+    });
+
+    // --- Chart ---
+    function renderChart(days) {
+        const el = $('chart');
+        el.innerHTML = '';
+
+        // Server hanya mengirim hari yang punya data, jadi lengkapi jadi 7 slot
+        // kalender. Tanpa ini sumbu-x ikut menyusut dan hari kosong lenyap.
+        const byDate = {};
+        days.forEach((d) => { byDate[d.date] = d; });
+
+        const slots = [];
+        for (let i = 6; i >= 0; i--) {
+            const dt = new Date();
+            dt.setHours(0, 0, 0, 0);
+            dt.setDate(dt.getDate() - i);
+            const key = dt.toISOString().slice(0, 10);
+            slots.push(byDate[key] || { date: key, requests: 0, tokens: 0 });
+        }
+
+        const max = Math.max.apply(null, slots.map((s) => s.requests).concat([1]));
+        slots.forEach((d) => {
+            const wrap = document.createElement('div');
+            wrap.className = 'bar-wrap';
+            const h = Math.max(3, Math.round((d.requests / max) * 100));
+            const tip = d.date + ' - ' + fmt(d.requests) + ' request - ' + fmt(d.tokens) + ' token';
+            wrap.innerHTML =
+                '<div class="bar' + (d.requests ? '' : ' empty') + '" style="height:' + h + '%" title="' + tip + '"></div>' +
+                '<div class="bar-label">' + d.date.slice(8) + '</div>';
+            el.appendChild(wrap);
+        });
+
+        const total = slots.reduce((a, d) => a + d.requests, 0);
+        $('chart-total').textContent = total ? fmt(total) + ' request minggu ini' : 'Belum ada data';
+    }
+
+    // --- Stats ---
+    async function loadStats() {
+        try {
+            const res = await fetch('/api/stats');
+            const d = await res.json();
+
+            $('dot').classList.remove('off');
+            $('live-text').textContent = 'Live';
+            $('uptime').textContent = 'Server aktif ' + dur(d.uptimeMs);
+
+            $('s-requests').textContent = fmt(d.requests);
+            $('s-sessions').textContent = fmt(d.sessions) + ' sesi unik';
+
+            $('s-tokens').textContent = fmt(d.totalTokens);
+            $('s-tokensplit').textContent = fmt(d.tokensIn) + ' masuk - ' + fmt(d.tokensOut) + ' keluar';
+
+            $('s-latency').textContent = d.requests ? fmt(d.avgLatencyMs) + ' ms' : '-';
+            $('s-latency').className = 'card-value ' + (d.avgLatencyMs > 8000 ? 'warn' : '');
+            $('s-latency-max').textContent = 'puncak ' + (d.requests ? fmt(d.maxLatencyMs) + ' ms' : '-');
+
+            const er = $('s-error');
+            er.textContent = Math.round(d.errorRate * 100) + '%';
+            er.className = 'card-value ' + (d.errorRate === 0 ? 'good' : d.errorRate > 0.2 ? 'bad' : 'warn');
+            $('s-error-count').textContent = fmt(d.errors) + ' dari ' + fmt(d.requests) + ' request';
+
+            $('d-in').textContent = fmt(d.tokensIn);
+            $('d-out').textContent = fmt(d.tokensOut);
+            $('d-total').textContent = fmt(d.totalTokens);
+            $('d-in-pct').textContent = pct(d.tokensIn, d.totalTokens) + '%';
+            $('d-out-pct').textContent = pct(d.tokensOut, d.totalTokens) + '%';
+            $('token-note').textContent = (d.tokensIn || d.tokensOut)
+                ? 'Token dihitung dari usage API bila tersedia, selebihnya estimasi ~4 karakter per token.'
+                : 'Estimasi ~4 karakter per token bila API tidak mengirim usage.';
+
+            renderChart(d.days);
+
+            const body = $('log-body');
+            body.innerHTML = '';
+            d.recent.forEach((r) => {
+                const tr = document.createElement('tr');
+                const cls = r.ok ? 'ok' : 'no';
+                const label = r.ok ? 'Sukses' : 'Gagal';
+                tr.innerHTML =
+                    '<td style="color:var(--muted)">' + clock(r.at) + '</td>' +
+                    '<td><span class="pill ' + cls + '">' + label + '</span></td>' +
+                    '<td>' + fmt(r.ms) + ' ms</td>' +
+                    '<td>' + fmt(r.tokens) + '</td>';
+                body.appendChild(tr);
+            });
+            $('log-empty').style.display = d.recent.length ? 'none' : 'block';
+        } catch {
+            $('dot').classList.add('off');
+            $('live-text').textContent = 'Server tidak merespons';
+        }
+    }
+
+    // --- Chat ---
+    function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    function parseMD(text) {
+        let s = esc(text);
+        // Replacer dipanggil sebagai fungsi agar $1 / $& di isi pesan
+        // tidak ditafsirkan sebagai pattern oleh String.replace.
+        s = s.replace(/```(\w*)\n?([\s\S]*?)```/g, function (m, lang, code) {
+            return '<pre><code>' + code + '</code></pre>';
+        });
+        s = s.replace(/`([^`]+)`/g, function (m, code) { return '<code>' + code + '</code>'; });
+        s = s.replace(/\*\*(.+?)\*\*/g, function (m, t) { return '<strong>' + t + '</strong>'; });
+        s = s.replace(/\*(.+?)\*/g, function (m, t) { return '<em>' + t + '</em>'; });
+        s = s.replace(/\n/g, '<br>');
+        return s;
+    }
+
+    function addMsg(role, html, who) {
+        const div = document.createElement('div');
+        div.className = 'msg ' + role;
+        div.innerHTML = (who ? '<b>' + who + '</b>' : '') + html;
+        history.appendChild(div);
+        history.scrollTop = history.scrollHeight;
+        return div;
+    }
+
+    async function send(ev) {
+        ev.preventDefault();
+        const input = $('input');
+        const btn = $('btn');
+        const text = input.value.trim();
+        if (!text) return;
+
+        chatCtx.push({ role: 'user', content: text });
+        addMsg('user', esc(text), 'Kamu');
+        input.value = '';
+        input.disabled = true;
+        btn.disabled = true;
+
+        const loading = addMsg('bot loading', 'Mengetik...', 'Asisten');
+
+        try {
+            const res = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ messages: chatCtx.slice(-MAX_CTX), sessionId: SESSION_ID })
+            });
+            const data = await res.json();
+            if (data.error) throw new Error(data.error);
+            loading.remove();
+            addMsg('bot', parseMD(data.reply), 'Asisten');
+            chatCtx.push({ role: 'assistant', content: data.reply });
+            if (data.stats) {
+                sessionTokens += data.stats.inTok + data.stats.outTok;
+                $('chat-tokens').textContent = fmt(sessionTokens) + ' token sesi ini';
+            }
+            loadStats();
+        } catch (err) {
+            loading.remove();
+            addMsg('bot error', 'Error: ' + (err.message || 'server tidak merespon'), 'Asisten');
+            chatCtx.pop();
+        }
+        input.disabled = false;
+        btn.disabled = false;
+        input.focus();
+    }
+
+    // Load chat history dari database saat page load
+    async function loadHistory() {
+        try {
+            const res = await fetch(`/api/history?sessionId=${SESSION_ID}`);
+            const data = await res.json();
+            if (data.history && data.history.length > 0) {
+                // Hapus greeting default
+                history.innerHTML = '';
+                // Load semua pesan dari database
+                data.history.forEach(msg => {
+                    if (msg.role === 'user') {
+                        addMsg('user', esc(msg.content), 'Kamu');
+                        chatCtx.push({ role: 'user', content: msg.content });
+                    } else if (msg.role === 'assistant') {
+                        addMsg('bot', parseMD(msg.content), 'Asisten');
+                        chatCtx.push({ role: 'assistant', content: msg.content });
+                    }
+                });
+                // Update token counter (estimasi)
+                sessionTokens = data.history.reduce((sum, m) => 
+                    sum + Math.ceil(m.content.length / 4), 0
+                );
+                $('chat-tokens').textContent = fmt(sessionTokens) + ' token sesi ini';
+            }
+        } catch (err) {
+            // Session baru atau error load history, pakai greeting default
+            console.log('Load history:', err.message);
+        }
+    }
+
+    // Toggle sidebar
+    document.getElementById('toggle-sidebar').addEventListener('click', () => {
+        document.getElementById('sidebar').classList.toggle('collapsed');
+    });
+
+    // Handler tombol New Chat (tanpa konfirmasi, langsung reload)
+    document.getElementById('new-chat-btn').addEventListener('click', () => {
+        const newSessionId = (window.crypto && crypto.randomUUID)
+            ? crypto.randomUUID()
+            : String(Date.now()) + Math.random().toString(36).slice(2);
+        localStorage.setItem('chatbot_session_id', newSessionId);
+        location.reload();
+    });
+
+    // Load session history list
+    async function loadSessionHistory() {
+        try {
+            const res = await fetch('/api/sessions');
+            const data = await res.json();
+            const historyList = document.getElementById('history-list');
+            historyList.innerHTML = '';
+            
+            if (data.sessions && data.sessions.length > 0) {
+                data.sessions.forEach(session => {
+                    const item = document.createElement('div');
+                    item.className = 'history-item' + (session.session_id === SESSION_ID ? ' active' : '');
+                    item.innerHTML = `
+                        <div class="history-item-title">${session.title || 'Chat baru'}</div>
+                    `;
+                    item.addEventListener('click', () => {
+                        localStorage.setItem('chatbot_session_id', session.session_id);
+                        location.reload();
+                    });
+                    historyList.appendChild(item);
+                });
+            } else {
+                historyList.innerHTML = '<div style="padding:10px; color:var(--muted); font-size:0.85rem; text-align:center;">Belum ada history</div>';
+            }
+        } catch (err) {
+            console.log('Load session history:', err.message);
+        }
+    }
+
+    loadHistory();
+    loadSessionHistory();
+    loadStats();
+    setInterval(loadStats, 10000);
+    
+    // Default view: Live Chat (langsung buka chat)
+    setTimeout(() => {
+        const chatBtn = document.querySelector('[data-view="chat"]');
+        if (chatBtn) {
+            document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+            chatBtn.classList.add('active');
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById('view-chat').classList.add('active');
+            document.getElementById('view-title').textContent = 'Live Chat';
+            document.getElementById('view-sub').textContent = 'Uji chatbot langsung dan pantau token yang terpakai';
+        }
+    }, 50);
+</script>
+</body>
+</html>
